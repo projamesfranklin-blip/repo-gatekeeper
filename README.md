@@ -13,7 +13,31 @@ flowchart LR
     D -->|🔴| G[Do NOT run it]
 ```
 
-## How to use it (no install needed)
+## 🤖 Connect it to Claude Code (automatic protection)
+
+Install the plugin once, and Claude **must pass the scan before it can clone any repo**:
+
+```
+/plugin install repo-gatekeeper --marketplace projamesfranklin-blip/repo-gatekeeper
+```
+
+(Older Claude Code versions: run `/plugin marketplace add projamesfranklin-blip/repo-gatekeeper`, then `/plugin install repo-gatekeeper@gatekeeper-tools`.)
+
+```mermaid
+flowchart LR
+    A["You: 'Claude, clone this repo'"] --> B[🛡️ Gatekeeper scans it first]
+    B -->|🟢| C[Claude clones it]
+    B -->|🟡| D[You approve or decline]
+    B -->|🔴| E[Blocked]
+```
+
+You also get a command to check a repo on demand:
+
+```
+/repo-gatekeeper:scan-repo https://github.com/someone/cool-tool
+```
+
+## How to use it on GitHub (no install needed)
 
 1. Open this repo on GitHub → click the **Actions** tab.
 2. Click **🛡️ Scan a repo before I use it** on the left.

@@ -1,0 +1,11 @@
+{
+  "name": "gatekeeper-tools",
+  "owner": { "name": "projamesfranklin-blip" },
+  "plugins": [
+    {
+      "name": "repo-gatekeeper",
+      "source": "./",
+      "description": "Scans any repo for malware tricks before Claude is allowed to clone it."
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "repo-gatekeeper",
+  "version": "1.0.0",
+  "description": "Scans any repo for malware tricks before Claude is allowed to clone it, without running its code.",
+  "author": { "name": "projamesfranklin-blip" },
+  "repository": "https://github.com/projamesfranklin-blip/repo-gatekeeper",
+  "keywords": ["security", "malware", "git", "scan"]
+}
