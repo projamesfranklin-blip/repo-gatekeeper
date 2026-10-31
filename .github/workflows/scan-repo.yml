@@ -1,0 +1,80 @@
+name: 🛡️ Scan a repo before I use it
+
+# How to use: GitHub -> Actions tab -> "Scan a repo before I use it" -> "Run workflow"
+# -> paste a GitHub link -> green Run button. The report appears on the run's Summary page.
+on:
+  workflow_dispatch:
+    inputs:
+      repo_url:
+        description: "GitHub link to check (e.g. https://github.com/owner/repo)"
+        required: true
+      branch:
+        description: "Branch to check (leave blank for the default branch)"
+        required: false
+        default: ""
+
+# The scanner only needs to read this repo. It gets no permission to change anything.
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Get the scanner
+        uses: actions/checkout@v4
+
+      - name: Check the link is a real GitHub repo address
+        env:
+          REPO_URL: ${{ inputs.repo_url }}
+          BRANCH: ${{ inputs.branch }}
+        run: |
+          url="${REPO_URL%/}"; url="${url%.git}"
+          if ! [[ "$url" =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "::error::That doesn't look like https://github.com/owner/repo"; exit 1
+          fi
+          if [[ -n "$BRANCH" && ! "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "::error::Branch name has unusual characters"; exit 1
+          fi
+          echo "TARGET_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Download the repo (read-only - nothing in it is run)
+        env:
+          BRANCH: ${{ inputs.branch }}
+          GIT_LFS_SKIP_SMUDGE: "1"
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          args=(--depth 1 --no-recurse-submodules)
+          [[ -n "$BRANCH" ]] && args+=(--branch "$BRANCH")
+          git -c core.hooksPath=/dev/null -c protocol.file.allow=never \
+            clone "${args[@]}" "$TARGET_URL" "$RUNNER_TEMP/target"
+
+      - name: Scan it
+        id: scan
+        run: |
+          set +e
+          python3 scanner/gatekeeper.py "$RUNNER_TEMP/target" --name "$TARGET_URL" \
+            --markdown report.md --json report.json > /dev/null
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatekeeper-report
+          path: |
+            report.md
+            report.json
+
+      - name: Final verdict
+        env:
+          CODE: ${{ steps.scan.outputs.code }}
+        run: |
+          case "$CODE" in
+            0) echo "🟢 Looks clean." ;;
+            1) echo "::warning::🟡 Review the flagged files before using this repo." ;;
+            2) echo "::error::🔴 Do NOT run this repo - see the report."; exit 1 ;;
+            *) echo "::error::Scanner failed to run (code $CODE)"; exit 1 ;;
+          esac
